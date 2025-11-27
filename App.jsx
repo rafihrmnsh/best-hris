@@ -532,12 +532,7 @@ export default function App() {
   const stats = {
     total: employees.length,
     pkwtt: employees.filter((e) => e.statusType === "PKWTT").length,
-    pkwt_pro: employees.filter(
-      (e) => e.statusType === "PKWT" && e.statusCategory === "Pro Hire"
-    ).length,
-    pkwt_proj: employees.filter(
-      (e) => e.statusType === "PKWT" && e.statusCategory === "By Project"
-    ).length,
+    pkwt: employees.filter((e) => e.statusType === "PKWT").length,
   };
 
   // -- DASHBOARD UI --
@@ -645,7 +640,7 @@ export default function App() {
           {/* VIEW: DASHBOARD */}
           {view === "dashboard" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard
                   title="Total Karyawan"
                   value={stats.total}
@@ -659,16 +654,10 @@ export default function App() {
                   colorClass="bg-emerald-600"
                 />
                 <StatCard
-                  title="PKWT - Pro Hire"
-                  value={stats.pkwt_pro}
+                  title="PKWT (Kontrak)"
+                  value={stats.pkwt}
                   icon={User}
                   colorClass="bg-amber-500"
-                />
-                <StatCard
-                  title="PKWT - By Project"
-                  value={stats.pkwt_proj}
-                  icon={FileText}
-                  colorClass="bg-purple-600"
                 />
               </div>
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
