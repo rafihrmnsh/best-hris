@@ -27,6 +27,9 @@ import {
 import headerImage from "./img/header.jpg";
 import logoImage from "./img/logo.png";
 
+// Import Login Component
+import Login from "./Login";
+
 // Firebase Imports
 import { initializeApp } from "firebase/app";
 import {
@@ -186,8 +189,9 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 export default function App() {
   // -- STATE UTAMA --
-  const [user, setUser] = useState({ uid: "guest", username: "Staff" }); // Default Guest
-  const [role, setRole] = useState("user"); // Default Role
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState("user"); // user | admin
   const [view, setView] = useState("dashboard");
   const [isDemo, setIsDemo] = useState(true);
 
@@ -202,7 +206,6 @@ export default function App() {
 
   // -- UI STATE --
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false); // Modal Login Admin
   const [activeTab, setActiveTab] = useState("pribadi");
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -245,12 +248,11 @@ export default function App() {
         "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"
       ),
     ]);
-    // Firebase Auth check removed for default guest mode
   }, []);
 
   // -- FETCH DATA --
   useEffect(() => {
-    if (!user) return;
+    if (!isLoggedIn) return;
 
     if (isDemo) {
       setEmployees(DEMO_EMPLOYEES);
@@ -272,21 +274,34 @@ export default function App() {
       );
       return () => unsub();
     }
-  }, [user, isDemo]);
+  }, [isLoggedIn, isDemo]);
 
   // -- HANDLERS AUTH --
-  const handleAdminLogin = (username, password) => {
-    if (username === "adminbest" && password === "best123") {
+  const handleAppLogin = (username, password, onError) => {
+    // Admin Credentials: admin/admin1234 OR adminbest/best123
+    if (
+      (username === "admin" && password === "admin1234") ||
+      (username === "adminbest" && password === "best123")
+    ) {
       setUser({ uid: "admin-user", username: "Administrator" });
       setRole("admin");
-      setIsAdminLoginOpen(false);
+      setIsLoggedIn(true);
+      setView("dashboard");
+    }
+    // User Credentials: user1/user1234
+    else if (username === "user1" && password === "user1234") {
+      setUser({ uid: "user1", username: "User Staff" });
+      setRole("user");
+      setIsLoggedIn(true);
+      setView("dashboard");
     } else {
-      alert("Username atau Password Admin salah!");
+      onError("Username atau password salah!");
     }
   };
 
-  const handleExitAdmin = () => {
-    setUser({ uid: "guest", username: "Staff" });
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUser(null);
     setRole("user");
     setView("dashboard");
   };
@@ -535,13 +550,20 @@ export default function App() {
     pkwt: employees.filter((e) => e.statusType === "PKWT").length,
   };
 
+  // -- LOGIN CHECK --
+  if (!isLoggedIn) {
+    return <Login onLogin={handleAppLogin} />;
+  }
+
   // -- DASHBOARD UI --
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
+    <div className="flex h-screen bg-slate-50 font-sans text-slate-800 animate-fade-in">
       {/* SIDEBAR */}
       <aside className="w-64 bg-white text-slate-600 flex flex-col shadow-xl z-20 border-r border-slate-200">
         <div className="p-6 border-b border-slate-100 flex flex-col gap-3">
-          <div className="flex justify-center"> {/* Centering the logo */}
+          <div className="flex justify-center">
+            {" "}
+            {/* Centering the logo */}
             <img src={logoImage} alt="PT BEST" className="w-48 h-auto" />
           </div>
           <div className="text-center">
@@ -578,34 +600,29 @@ export default function App() {
                 view === "settings"
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
                   : "hover:bg-slate-50 text-slate-600 hover:text-blue-600"
-            }`}
+              }`}
             >
               <Settings size={20} /> <span>Master Data</span>
             </button>
           )}
         </nav>
         <div className="p-4 border-t border-slate-100">
-          {role === "admin" ? (
-            <button
-              onClick={handleExitAdmin}
-              className="flex items-center gap-3 w-full px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium"
-            >
-              <LogOut size={20} /> <span>Keluar Admin</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsAdminLoginOpen(true)}
-              className="flex items-center gap-3 w-full px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
-            >
-              <ShieldCheck size={20} /> <span>Login Admin</span>
-            </button>
-          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg transition font-medium"
+          >
+            <LogOut size={20} /> <span>Logout</span>
+          </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className={`${role === "admin" ? "bg-red-50" : "bg-white"} h-16 border-b px-8 flex items-center justify-between shadow-sm z-10`}>
+        <header
+          className={`${
+            role === "admin" ? "bg-red-50" : "bg-white"
+          } h-16 border-b px-8 flex items-center justify-between shadow-sm z-10`}
+        >
           <h2 className="font-bold text-xl text-slate-700 capitalize">
             {view === "settings"
               ? "Pengaturan Master Data"
@@ -616,7 +633,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="text-right hidden md:block">
               <p className="text-sm font-bold text-slate-700 capitalize">
-                {role}
+                {user?.username || role}
               </p>
               <p className="text-xs text-slate-500">
                 {new Date().toLocaleDateString("id-ID")}
@@ -1223,83 +1240,6 @@ export default function App() {
             </button>
           </div>
         </form>
-      </Modal>
-
-      {/* MODAL LOGIN ADMIN */}
-      <Modal
-        isOpen={isAdminLoginOpen}
-        onClose={() => setIsAdminLoginOpen(false)}
-        title="" // Empty title as we have custom header
-      >
-        <div className="text-center mb-6">
-          <img
-            src={logoImage}
-            alt="PT BEST"
-            className="h-20 mx-auto mb-4 object-contain"
-          />
-          <h2 className="text-xl font-bold text-slate-800">Admin Login</h2>
-          <p className="text-slate-500 text-sm">
-            Masukkan kredensial administrator
-          </p>
-        </div>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const u = e.target.username.value;
-            const p = e.target.password.value;
-            handleAdminLogin(u, p);
-          }}
-          className="space-y-5"
-        >
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="h-5 w-5 text-slate-400" />
-            </div>
-            <input
-              name="username"
-              type="text"
-              placeholder="Username"
-              required
-              autoFocus
-              className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-slate-400" />
-            </div>
-            <input
-              name="password"
-              type="password"
-              placeholder="Password"
-              required
-              className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
-          </div>
-
-          <div className="pt-2 flex gap-3">
-            <button
-              type="button"
-              onClick={() => setIsAdminLoginOpen(false)}
-              className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transform hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Login
-            </button>
-          </div>
-        </form>
-        <div className="mt-6 text-center">
-          <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} PT Bakti Energi Sejahtera
-          </p>
-        </div>
       </Modal>
     </div>
   );
